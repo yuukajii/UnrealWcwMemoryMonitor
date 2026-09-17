@@ -17,6 +17,11 @@
 
 #define MEMORY_WIDGET_WIDTH  420.0f
 
+static TAutoConsoleVariable<float> CVarWcwMemoryMonitorFontScale(
+	TEXT("Wcw.MemoryMonitor.FontScale"), 1.0f,
+	TEXT(""),
+	ECVF_Default);
+
 
 static FString TextureGroupToString(TextureGroup Group)
 {
@@ -30,6 +35,13 @@ static FString TextureGroupToString(TextureGroup Group)
 
 void SWcwMemoryBudgetWidget::Construct(const FArguments& InArgs)
 {
+    IConsoleVariable* FontScaleCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("wcw.MemoryMonitor.FontScale"));
+    if (FontScaleCVar)
+    {
+        FontScaleCVar->OnChangedDelegate().AddRaw(this, &SWcwMemoryBudgetWidget::OnFontScaleCVarChanged);       
+        OnFontScaleCVarChanged(FontScaleCVar);
+    }
+
     SetVisibility(EVisibility::HitTestInvisible);
 
     const UWcwMemoryMonitorSettings* Settings = UWcwMemoryMonitorSettings::Get();
@@ -179,6 +191,35 @@ FText GetTextureGroupDisplayName(TextureGroup GroupEnum)
     }
 
     return FText::FromString(GroupNameTChar);
+}
+
+void SWcwMemoryBudgetWidget::OnFontScaleCVarChanged(IConsoleVariable* CVar)
+{
+    if (CVar)
+    {
+       const UWcwMemoryMonitorSettings* Settings = UWcwMemoryMonitorSettings::Get();
+       FSlateFontInfo CustomFont = FAppStyle::GetFontStyle("NormalFont");
+       float BaseSize = Settings->FontSize; 
+        float NewScale = CVar->GetFloat();
+       
+        for (int32 i = 0; i < GroupElements.Num(); ++i)
+        {
+            FGroupUIElement& Elem = GroupElements[i];
+
+            if (Elem.ValueTextBlock.IsValid())
+            {
+                FSlateFontInfo CurrentFont = Elem.ValueTextBlock->GetFont();
+                CurrentFont.Size = FMath::RoundToInt(BaseSize * NewScale); 
+                Elem.ValueTextBlock->SetFont(CurrentFont);
+            }
+            if (Elem.NameTextBlock.IsValid())
+            {
+                FSlateFontInfo CurrentFont = Elem.NameTextBlock->GetFont();
+                CurrentFont.Size = FMath::RoundToInt(BaseSize * NewScale); 
+                Elem.NameTextBlock->SetFont(CurrentFont);
+            }
+        }
+    }
 }
 
 void SWcwMemoryBudgetWidget::UpdateMemoryData()

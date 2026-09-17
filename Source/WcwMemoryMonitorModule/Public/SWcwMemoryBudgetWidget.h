@@ -26,7 +26,6 @@ private:
     virtual bool SupportsKeyboardFocus() const override { return false; }
     virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
     virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-
     struct FGroupUIElement
     {
         EMonitorContentType Type;
@@ -43,5 +42,6 @@ private:
     TArray<FGroupUIElement> GroupElements;
     
     void AddElement(const FGroupUIElement& Element,TSharedPtr<SVerticalBox> MainVerticalBox);
+    void OnFontScaleCVarChanged(IConsoleVariable* CVar);
     void UpdateMemoryData();
 };

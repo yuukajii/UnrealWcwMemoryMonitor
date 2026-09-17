@@ -54,7 +54,7 @@ public:
     static TArray<FString> GetWcwLLMMemoryGroupNames();
 
     UPROPERTY(Config, EditAnywhere, BlueprintReadWrite, Category = "Font", meta = (ClampMin = "6.0", ClampMax = "48.0"))
-    float FontSize = 14.f;
+    float FontSize = 16.f;
 
     UPROPERTY(Config, EditAnywhere, BlueprintReadWrite, Category = "System Groups", meta = (TitleProperty = "SystemGroupEnum"))
     TArray<FWcwSystemBudgetConfig> SystemGroups;

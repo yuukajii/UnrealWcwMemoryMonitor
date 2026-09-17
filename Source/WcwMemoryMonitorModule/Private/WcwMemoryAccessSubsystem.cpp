@@ -25,7 +25,7 @@
 #endif
 
     static FAutoConsoleCommand Uc_ToggleMemoryBudget(
-        TEXT("Wcw.ToggleMemoryBudget"),
+        TEXT("Wcw.MemoryMonitor.ToggleUI"),
         TEXT("Toggles the Memory Budget debug UI on/off."),
         FConsoleCommandDelegate::CreateStatic([]()
         {
@@ -136,7 +136,6 @@ void UWcwMemoryAccessSubsystem::FetchMemoryStats()
     }
 
     {//SystemMemory
-//     TMap<FString, FWcwSystemMemInfo> SystemMemoryMap;
        SystemMemoryMap.Empty();
        SystemMemoryMap.Reserve(static_cast<int>(EWcwSystemGroup::Max));
 
@@ -159,6 +158,8 @@ void UWcwMemoryAccessSubsystem::FetchMemoryStats()
            EntryMem.MaxMemory = GetTotalVRAM_MB();
            SystemMemoryMap[SystemMemoryGroups[ static_cast<int>(EWcwSystemGroup::WcwSystemVRAM)]] = EntryMem;
        }
+       const IConsoleVariable* CVarTextureStreaming = IConsoleManager::Get().FindConsoleVariable(TEXT("r.TextureStreaming"));
+	   if (CVarTextureStreaming && CVarTextureStreaming->GetInt() != 0)
        {//TexturePool
            FStreamingManagerCollection& StreamingManagerCollection = IStreamingManager::Get();
            IRenderAssetStreamingManager& TextureStreamingManager = StreamingManagerCollection.GetTextureStreamingManager();
