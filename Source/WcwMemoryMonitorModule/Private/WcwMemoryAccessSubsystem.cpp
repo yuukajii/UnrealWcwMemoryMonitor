@@ -4,16 +4,14 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
-#if !UE_BUILD_SHIPPING
+
 #include "Engine/Texture.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "UObject/UObjectIterator.h"
 #include "ContentStreaming.h"
-#endif
 #include "WcwMemoryMonitorSettings.h"
-#include "ContentStreaming.h"
 #include "RHI.h"
 
 #if PLATFORM_WINDOWS || PLATFORM_MICROSOFT
@@ -23,13 +21,14 @@
 #include <PdhMsg.h>
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
+#include "RHI.h"
+#include "RHIStats.h"
 
     static FAutoConsoleCommand Uc_ToggleMemoryBudget(
         TEXT("Wcw.MemoryMonitor.ToggleUI"),
         TEXT("Toggles the Memory Budget debug UI on/off."),
         FConsoleCommandDelegate::CreateStatic([]()
         {
-    #if !UE_BUILD_SHIPPING
             if (GEngine)
             {
                 if (UWcwMemoryAccessSubsystem* Subsystem = GEngine->GetEngineSubsystem<UWcwMemoryAccessSubsystem>())
@@ -37,10 +36,47 @@
                     Subsystem->ToggleWidget();
                 }
             }
-   #endif
         })
     );
+void GatherRhiResourceStats(TMap<EWcwRhiResourceGroup, FWcwRhiResourceStatsInfo>& OutStats)
+{
+    OutStats.Empty();
+    TArray<TSharedPtr<FRHIResourceStats>> ResourceStats;
+    RHIGetTrackedResourceStats(ResourceStats);
 
+    for (const TSharedPtr<FRHIResourceStats>& Stat : ResourceStats)
+    {
+        if (!Stat.IsValid())
+        {
+            continue;
+        }
+
+        FString ResourceName = Stat->Name.ToString();
+        EWcwRhiResourceGroup FoundGroup = EWcwRhiResourceGroup::Max;
+
+        if (ResourceName.Contains(TEXT("Lumen"))) { FoundGroup = EWcwRhiResourceGroup::WcwRhiLumen; }
+        else if (ResourceName.Contains(TEXT("Nanite"))) { FoundGroup = EWcwRhiResourceGroup::WcwRhiNanite; }
+        else if (ResourceName.Contains(TEXT("Shadow"))) { FoundGroup = EWcwRhiResourceGroup::WcwRhiShadow; }
+        else if (ResourceName.Contains(TEXT("DistanceFields"))) { FoundGroup = EWcwRhiResourceGroup::WcwRhiDistanceFields; }
+        else if (ResourceName.Contains(TEXT("IndexBuffer"))) { FoundGroup = EWcwRhiResourceGroup::WcwRhiIndexBuffer; }
+        else if (ResourceName.Contains(TEXT("VertexBuffer"))) { FoundGroup = EWcwRhiResourceGroup::WcwRhiVertexBuffer; }
+        else if (ResourceName.Contains(TEXT("VirtualTexture"))) { FoundGroup = EWcwRhiResourceGroup::WcwRhiVirtualTexture; }
+        else if (ResourceName.Contains(TEXT("Hair"))) { FoundGroup = EWcwRhiResourceGroup::WcwRhiHair; }
+
+        if (FoundGroup != EWcwRhiResourceGroup::Max)
+        {
+            FWcwRhiResourceStatsInfo& GroupStat = OutStats.FindOrAdd(FoundGroup);
+            if (Stat->bTransient)
+            {
+                GroupStat.TransientSize += Stat->SizeInBytes;
+            }
+            else
+            {
+                GroupStat.NonTransientSize += Stat->SizeInBytes;
+            }
+        }
+    }
+}
 
 
 void UWcwMemoryAccessSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -60,48 +96,12 @@ void UWcwMemoryAccessSubsystem::Deinitialize()
     Super::Deinitialize();
 }
 
-void UWcwMemoryAccessSubsystem::ToggleWidget()
-{
-    if (!GEngine || !GEngine->GameViewport)
-    {
-        return;
-    }
-
-    if (BudgetWidgetInstance.IsValid())
-    {
-        GEngine->GameViewport->RemoveViewportWidgetContent(BudgetWidgetInstance.ToSharedRef());
-        BudgetWidgetInstance.Reset();
-        UE_LOG(LogTemp, Log, TEXT("Memory Budget UI: OFF"));
-    }
-    else
-    {
-        BudgetWidgetInstance = SNew(SWcwMemoryBudgetWidget);
-        GEngine->GameViewport->AddViewportWidgetContent(BudgetWidgetInstance.ToSharedRef(), INT32_MAX);
-        UE_LOG(LogTemp, Log, TEXT("Memory Budget UI: ON"));
-    }
-}
-void UWcwMemoryAccessSubsystem::ForceCloseWidget()
-{
-    if (GEngine && GEngine->GameViewport && BudgetWidgetInstance.IsValid())
-    {
-        GEngine->GameViewport->RemoveViewportWidgetContent(BudgetWidgetInstance.ToSharedRef());
-        BudgetWidgetInstance.Reset();
-        UE_LOG(LogTemp, Log, TEXT("Memory Budget UI: Automatically closed due to PIE End."));
-    }
-}
-
-#if WITH_EDITOR
-void UWcwMemoryAccessSubsystem::HandleEndPIE(bool bIsSimulating)
-{
-    ForceCloseWidget();
-}
-#endif
 
 void UWcwMemoryAccessSubsystem::FetchMemoryStats()
 {
     const UWcwMemoryMonitorSettings* Settings = UWcwMemoryMonitorSettings::Get();
 
-
+	if(Settings->TargetGroups.Num() > 0)
     {
         TArray<FString> TextureGroupNames = UTextureLODSettings::GetTextureGroupNames();
         TexGroupMemoryMap.Empty();
@@ -147,7 +147,7 @@ void UWcwMemoryAccessSubsystem::FetchMemoryStats()
         }
 
        FWcwSystemMemInfo EntryMem;
-       {//PhysicalMemory
+	   {//PhysicalMemory
            float RamMaxBytes = static_cast<float>(MemStats.UsedPhysical + MemStats.AvailablePhysical);
            EntryMem.UseMemory = MemStats.UsedPhysical/(1024.0f*1024.0f);
            EntryMem.MaxMemory = RamMaxBytes/(1024.0f*1024.0f);
@@ -172,56 +172,14 @@ void UWcwMemoryAccessSubsystem::FetchMemoryStats()
            SystemMemoryMap[SystemMemoryGroups[ static_cast<int>(EWcwSystemGroup::WcwSystemTexturePool)]] = EntryMem;
        }
     }
+	if(Settings->RhiResourceGroups.Num()>0)
+	{//Rhi
+		RhiResourceStats.Empty();
+	    RhiResourceStats.Reserve(static_cast<int>(EWcwRhiResourceGroup::Max));
+		GatherRhiResourceStats(RhiResourceStats);
+	}
 }
 
-float UWcwMemoryAccessSubsystem::GetLLMMemoryMB(EWcwLLMTag Tag) const
-{
-#if ENABLE_LOW_LEVEL_MEM_TRACKER
-    if (!FLowLevelMemTracker::Get().IsEnabled() || Tag == EWcwLLMTag::Untracked)
-    {
-        return 0.f;
-    }
-
-    ELLMTag NativeTag = ELLMTag::Untagged;
-    
-    switch (Tag)
-    {
-        case EWcwLLMTag::Textures:        NativeTag = ELLMTag::Textures; break;
-        case EWcwLLMTag::RenderTargets:   NativeTag = ELLMTag::RenderTargets; break;
-        case EWcwLLMTag::StaticMeshes:    NativeTag = ELLMTag::StaticMesh; break;
-        case EWcwLLMTag::SkeletalMeshes:  NativeTag = ELLMTag::SkeletalMesh; break;
-        case EWcwLLMTag::Materials:       NativeTag = ELLMTag::Materials; break;
-        
-        case EWcwLLMTag::Animation:       NativeTag = ELLMTag::Animation; break;
-        case EWcwLLMTag::Audio:           NativeTag = ELLMTag::Audio; break;
-        case EWcwLLMTag::Physics:         NativeTag = ELLMTag::Physics; break;
-        case EWcwLLMTag::Niagara:         NativeTag = ELLMTag::Niagara; break;
-        case EWcwLLMTag::UI:              NativeTag = ELLMTag::UI; break;
-        
-        case EWcwLLMTag::UObject:         NativeTag = ELLMTag::UObject; break;
-        case EWcwLLMTag::EngineMisc:      NativeTag = ELLMTag::EngineMisc; break;
-        case EWcwLLMTag::Shaders:         NativeTag = ELLMTag::Shaders; break;
-        case EWcwLLMTag::NavigationRecast:      NativeTag = ELLMTag::NavigationRecast; break;
-
-        default: break;
-    }
-
-    const int64 Bytes = FLowLevelMemTracker::Get().GetTagAmountForTracker(ELLMTracker::Default, NativeTag, UE::LLM::ESizeParams::Default);
-    return static_cast<float>(Bytes) / (1024.0f * 1024.0f);
-#else
-    return 0.f;
-#endif
-}
-bool UWcwMemoryAccessSubsystem::GetSystemMemoryMB(const FString& SystemName,FWcwSystemMemInfo& OutSystemMemInfo)
-{
-    const FWcwSystemMemInfo* Found = SystemMemoryMap.Find(SystemName);
-    if(Found)
-    {
-        OutSystemMemInfo = *Found;
-    }
-    return Found ? true : false;
-
-}
 float UWcwMemoryAccessSubsystem::GetTotalVRAM_MB() const
 {
     FTextureMemoryStats Stats;
@@ -357,3 +315,99 @@ float UWcwMemoryAccessSubsystem::GetTotalTextureMemoryMB() const
     return TotalTextureMemoryMB;
 }
 
+
+bool UWcwMemoryAccessSubsystem::GetSystemMemoryMB(const FString& SystemName,FWcwSystemMemInfo& OutSystemMemInfo)
+{
+    const FWcwSystemMemInfo* Found = SystemMemoryMap.Find(SystemName);
+    if(Found)
+    {
+        OutSystemMemInfo = *Found;
+    }
+    return Found ? true : false;
+}
+
+float UWcwMemoryAccessSubsystem::GetLLMMemoryMB(EWcwLLMTag Tag) const
+{
+#if ENABLE_LOW_LEVEL_MEM_TRACKER
+    if (!FLowLevelMemTracker::Get().IsEnabled() || Tag == EWcwLLMTag::Untracked)
+    {
+        return 0.f;
+    }
+
+    ELLMTag NativeTag = ELLMTag::Untagged;
+    
+    switch (Tag)
+    {
+        case EWcwLLMTag::Textures:        NativeTag = ELLMTag::Textures; break;
+        case EWcwLLMTag::RenderTargets:   NativeTag = ELLMTag::RenderTargets; break;
+        case EWcwLLMTag::StaticMeshes:    NativeTag = ELLMTag::StaticMesh; break;
+        case EWcwLLMTag::SkeletalMeshes:  NativeTag = ELLMTag::SkeletalMesh; break;
+        case EWcwLLMTag::Materials:       NativeTag = ELLMTag::Materials; break;
+        
+        case EWcwLLMTag::Animation:       NativeTag = ELLMTag::Animation; break;
+        case EWcwLLMTag::Audio:           NativeTag = ELLMTag::Audio; break;
+        case EWcwLLMTag::Physics:         NativeTag = ELLMTag::Physics; break;
+        case EWcwLLMTag::Niagara:         NativeTag = ELLMTag::Niagara; break;
+        case EWcwLLMTag::UI:              NativeTag = ELLMTag::UI; break;
+        
+        case EWcwLLMTag::UObject:         NativeTag = ELLMTag::UObject; break;
+        case EWcwLLMTag::EngineMisc:      NativeTag = ELLMTag::EngineMisc; break;
+        case EWcwLLMTag::Shaders:         NativeTag = ELLMTag::Shaders; break;
+        case EWcwLLMTag::NavigationRecast:      NativeTag = ELLMTag::NavigationRecast; break;
+
+        default: break;
+    }
+
+    const int64 Bytes = FLowLevelMemTracker::Get().GetTagAmountForTracker(ELLMTracker::Default, NativeTag, UE::LLM::ESizeParams::Default);
+    return static_cast<float>(Bytes) / (1024.0f * 1024.0f);
+#endif
+}
+
+void UWcwMemoryAccessSubsystem::ToggleWidget()
+{
+    if (!GEngine || !GEngine->GameViewport)
+    {
+        return;
+    }
+
+    if (BudgetWidgetInstance.IsValid())
+    {
+        GEngine->GameViewport->RemoveViewportWidgetContent(BudgetWidgetInstance.ToSharedRef());
+        BudgetWidgetInstance.Reset();
+        UE_LOG(LogTemp, Log, TEXT("Memory Budget UI: OFF"));
+    }
+    else
+    {
+        BudgetWidgetInstance = SNew(SWcwMemoryBudgetWidget);
+        GEngine->GameViewport->AddViewportWidgetContent(BudgetWidgetInstance.ToSharedRef(), INT32_MAX);
+        UE_LOG(LogTemp, Log, TEXT("Memory Budget UI: ON"));
+    }
+}
+
+void UWcwMemoryAccessSubsystem::ForceCloseWidget()
+{
+    if (GEngine && GEngine->GameViewport && BudgetWidgetInstance.IsValid())
+    {
+        GEngine->GameViewport->RemoveViewportWidgetContent(BudgetWidgetInstance.ToSharedRef());
+        BudgetWidgetInstance.Reset();
+        UE_LOG(LogTemp, Log, TEXT("Memory Budget UI: Automatically closed due to PIE End."));
+    }
+}
+
+float  UWcwMemoryAccessSubsystem::GetRhiResourceMemory(EWcwRhiResourceGroup Group)
+{
+//	return static_cast<float>(RhiResourceStats[Group].NonTransientSize) / (1024.0f * 1024.0f);
+    const FWcwRhiResourceStatsInfo* Found = RhiResourceStats.Find(Group);
+    if(Found)
+    {
+		return static_cast<float>(Found->NonTransientSize) / (1024.0f * 1024.0f);
+    }
+    return 0.0f;
+}
+
+#if WITH_EDITOR
+void UWcwMemoryAccessSubsystem::HandleEndPIE(bool bIsSimulating)
+{
+    ForceCloseWidget();
+}
+#endif

@@ -11,6 +11,7 @@ enum class EMonitorContentType : uint8
     SystemInfo     UMETA(DisplayName = "System Info"),
     TextureGroup   UMETA(DisplayName = "Texture Group"),
     LLMMetrics     UMETA(DisplayName = "LLM Metrics"),
+    RHIResource     UMETA(DisplayName = "RHI Resouce"),
     Max,
 };
 
@@ -47,8 +48,30 @@ enum class EWcwLLMTag : uint8
     Max,
 };
 
+UENUM(BlueprintType)
+enum class EWcwRhiResourceGroup : uint8
+{
+    WcwRhiLumen				UMETA(DisplayName = "RHI:Lumen"),
+    WcwRhiNanite			UMETA(DisplayName = "RHI:Nanite"),
+    WcwRhiShadow			UMETA(DisplayName = "RHI:Shadow"),
+    WcwRhiDistanceFields    UMETA(DisplayName = "RHI:DistanceFields"),
+	WcwRhiIndexBuffer		UMETA(DisplayName = "RHI:IndexBuffer"),
+	WcwRhiVertexBuffer      UMETA(DisplayName = "RHI:VertexBuffer"),
+	WcwRhiVirtualTexture    UMETA(DisplayName = "RHI:VirtualTexture"),
+	WcwRhiHair				UMETA(DisplayName = "RHI:Hair"),
+    Max
+};
+
 struct FWcwSystemMemInfo
 {
     float UseMemory;
     float MaxMemory;
 };
+
+struct FWcwRhiResourceStatsInfo
+{
+    int64 NonTransientSize = 0;
+    int64 TransientSize = 0;
+    int64 GetTotalSize() const { return NonTransientSize + TransientSize; }
+};
+

@@ -31,6 +31,7 @@ private:
         EMonitorContentType Type;
         EWcwLLMTag WcwLLMTag = EWcwLLMTag::Untracked;
         TextureGroup GroupEnum=TEXTUREGROUP_World;
+		EWcwRhiResourceGroup RhiGroup=EWcwRhiResourceGroup::WcwRhiLumen;
         FString GroupName;
         float CurrentMB = 0.f;
         float MaxMB = 512.f;
@@ -40,8 +41,9 @@ private:
     };
 
     TArray<FGroupUIElement> GroupElements;
+	float	LastFontScale=1.0f;
     
     void AddElement(const FGroupUIElement& Element,TSharedPtr<SVerticalBox> MainVerticalBox);
-    void OnFontScaleCVarChanged(IConsoleVariable* CVar);
+    void ApplyFontScale(float CurrentScale);
     void UpdateMemoryData();
 };

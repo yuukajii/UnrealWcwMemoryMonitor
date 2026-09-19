@@ -27,6 +27,7 @@ public:
     float GetLLMMemoryMB(EWcwLLMTag Tag) const;
     void ToggleWidget();
     void ForceCloseWidget();
+	float GetRhiResourceMemory(EWcwRhiResourceGroup Group);
 
 private:
     TMap<FString, FWcwSystemMemInfo> SystemMemoryMap;
@@ -34,7 +35,7 @@ private:
     float TotalTextureMemoryMB = 0.f;
 
     TSharedPtr<SWcwMemoryBudgetWidget> BudgetWidgetInstance;
-
+	TMap<EWcwRhiResourceGroup, FWcwRhiResourceStatsInfo>  RhiResourceStats;
 #if WITH_EDITOR
     void HandleEndPIE(bool bIsSimulating);
 #endif

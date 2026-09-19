@@ -40,6 +40,15 @@ struct FWcwLLMBudgetConfig
     float BudgetMB = 512.f;
 };
 
+USTRUCT(BlueprintType)
+struct FWcwRhiResourceConfig
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Memory Monitor")
+    EWcwRhiResourceGroup RhiResourceGroup = EWcwRhiResourceGroup::WcwRhiLumen;
+};
+
 
 UCLASS(Config = Engine, defaultconfig, meta = (DisplayName = "WCW Memory Monitor Settings"))
 class UWcwMemoryMonitorSettings : public UDeveloperSettings
@@ -48,10 +57,14 @@ class UWcwMemoryMonitorSettings : public UDeveloperSettings
 
 public:
     UWcwMemoryMonitorSettings();
-	virtual FName GetCategoryName() const override;
+	#if WITH_EDITOR
+	    virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	#endif
+    virtual FName GetCategoryName() const override;
     virtual FName GetSectionName() const override;
     static TArray<FString> GetWcwSystemMemoryGroupNames();
     static TArray<FString> GetWcwLLMMemoryGroupNames();
+    static TArray<FString> GetWcwRhiMemoryGroupNames();
 
     UPROPERTY(Config, EditAnywhere, BlueprintReadWrite, Category = "Font", meta = (ClampMin = "6.0", ClampMax = "48.0"))
     float FontSize = 16.f;
@@ -65,6 +78,8 @@ public:
     UPROPERTY(Config, EditAnywhere, BlueprintReadWrite, Category = "LLM Groups", meta = (TitleProperty = "WcwLLMTag",ToolTip = "Note: The tag specified here must include '-LLM'."))
     TArray<FWcwLLMBudgetConfig> LLMGroups;
 
+	UPROPERTY(Config, EditAnywhere, Category = "Monitor Settings")
+    TArray<FWcwRhiResourceConfig> RhiResourceGroups;
 
     static const UWcwMemoryMonitorSettings* Get() { return GetDefault<UWcwMemoryMonitorSettings>(); }
 };

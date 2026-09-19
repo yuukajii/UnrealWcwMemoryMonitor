@@ -6,7 +6,7 @@
 	"Description": "WinterCrownWORKS Memory Monitoring Tool",
 	"Category": "Performance",
 	"CreatedBy": "WinterCrownWORKS",
-	"CreatedByURL": "https://winter-crown-works.com/en/",
+	"CreatedByURL": "https://winter-crown-works.com/ja/",
 	"DocsURL": "",
 	"MarketplaceURL": "",
 	"SupportURL": "",
@@ -19,7 +19,8 @@
 		{
 			"Name": "WcwMemoryMonitorModule",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
-		}
+			"LoadingPhase": "Default",
+			"TargetConfigurationDenyList": [ "Shipping" ]
+		},
 	]
 }

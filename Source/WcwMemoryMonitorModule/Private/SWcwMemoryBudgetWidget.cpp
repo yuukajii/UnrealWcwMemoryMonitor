@@ -32,14 +32,36 @@ static FString TextureGroupToString(TextureGroup Group)
     return TEXT("TEXTUREGROUP_Unknown");
 }
 
+static FText GetTextureGroupDisplayName(TextureGroup GroupEnum)
+{
+    const TCHAR* GroupNameTChar = UTexture::GetTextureGroupString(GroupEnum);
+    FString DisplayNameOut;
+
+    if (GConfig)
+    {
+        const UWcwMemoryMonitorSettings* Settings = UWcwMemoryMonitorSettings::Get();
+
+        FString IniSec = TEXT("EnumRemap");
+        FString KeyName = FString::Printf(TEXT("%s.DisplayName"), GroupNameTChar);
+
+        if (GConfig->GetString(*IniSec, *KeyName, DisplayNameOut, GEngineIni))
+        {
+            return FText::FromString(DisplayNameOut);
+        }
+    }
+
+    return FText::FromString(GroupNameTChar);
+}
+
 
 void SWcwMemoryBudgetWidget::Construct(const FArguments& InArgs)
 {
     IConsoleVariable* FontScaleCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("wcw.MemoryMonitor.FontScale"));
     if (FontScaleCVar)
     {
-        FontScaleCVar->OnChangedDelegate().AddRaw(this, &SWcwMemoryBudgetWidget::OnFontScaleCVarChanged);       
-        OnFontScaleCVarChanged(FontScaleCVar);
+//        FontScaleCVar->OnChangedDelegate().AddSP(this, &SWcwMemoryBudgetWidget::OnFontScaleCVarChanged);
+//        OnFontScaleCVarChanged(FontScaleCVar);
+		LastFontScale = FontScaleCVar->GetFloat();
     }
 
     SetVisibility(EVisibility::HitTestInvisible);
@@ -83,11 +105,11 @@ void SWcwMemoryBudgetWidget::Construct(const FArguments& InArgs)
     {
         TArray<FString> SystemMemoryGroups = UWcwMemoryMonitorSettings::GetWcwSystemMemoryGroupNames();
         
-        for (FWcwSystemBudgetConfig TargetGroup : Settings->SystemGroups)
+        for (FWcwSystemBudgetConfig SystemGroup : Settings->SystemGroups)
         {
             FGroupUIElement Element;
             Element.Type      = EMonitorContentType::SystemInfo;
-            Element.GroupName = SystemMemoryGroups[static_cast<int>(TargetGroup.SystemGroupEnum)];
+            Element.GroupName = SystemMemoryGroups[static_cast<int>(SystemGroup.SystemGroupEnum)];
             Element.MaxMB = 0; 
             AddElement(Element,MainVerticalBox);
         }
@@ -108,17 +130,46 @@ void SWcwMemoryBudgetWidget::Construct(const FArguments& InArgs)
     }
     {//LLM
         TArray<FString> WcwLLMMemoryGroups = UWcwMemoryMonitorSettings::GetWcwLLMMemoryGroupNames();
-        for (FWcwLLMBudgetConfig TargetGroup : Settings->LLMGroups)
+        for (FWcwLLMBudgetConfig LLMGroup : Settings->LLMGroups)
         {
             FGroupUIElement Element;
             Element.Type      = EMonitorContentType::LLMMetrics;
-            Element.WcwLLMTag = TargetGroup.WcwLLMTag;
-            Element.GroupName = WcwLLMMemoryGroups[static_cast<int>(TargetGroup.WcwLLMTag)];
-            Element.MaxMB = TargetGroup.BudgetMB; 
+            Element.WcwLLMTag = LLMGroup.WcwLLMTag;
+            Element.GroupName = WcwLLMMemoryGroups[static_cast<int>(LLMGroup.WcwLLMTag)];
+            Element.MaxMB = LLMGroup.BudgetMB; 
+            AddElement(Element,MainVerticalBox);
+        }
+    }
+
+    {//RHI
+        TArray<FString> WcwRHIMemoryGroups = UWcwMemoryMonitorSettings::GetWcwRhiMemoryGroupNames();
+        for (FWcwRhiResourceConfig RhiResourceConfig : Settings->RhiResourceGroups)
+        {
+            FGroupUIElement Element;
+            Element.Type      = EMonitorContentType::RHIResource;
+            Element.RhiGroup  = RhiResourceConfig.RhiResourceGroup;
+            Element.GroupName = WcwRHIMemoryGroups[static_cast<int>(RhiResourceConfig.RhiResourceGroup)];
             AddElement(Element,MainVerticalBox);
         }
     }
 }
+
+void SWcwMemoryBudgetWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+   SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+   static IConsoleVariable* FontScaleCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("wcw.MemoryMonitor.FontScale"));
+   if (FontScaleCVar)
+   {
+	   float CurrentScale = FontScaleCVar->GetFloat();
+	   if (FMath::IsNearlyEqual(CurrentScale , LastFontScale)==false)
+        {
+            LastFontScale = CurrentScale;
+            ApplyFontScale(CurrentScale); 
+        }
+   }
+   UpdateMemoryData();
+}
+
 FReply SWcwMemoryBudgetWidget::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) //override
 {
     return FReply::Unhandled();
@@ -165,60 +216,31 @@ void SWcwMemoryBudgetWidget::AddElement(const FGroupUIElement& Element,TSharedPt
    GroupElements.Add(EntryElement);
 }
 
-
-void SWcwMemoryBudgetWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+void SWcwMemoryBudgetWidget::ApplyFontScale(float CurrentScale)
 {
-   SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
-   UpdateMemoryData();
-}
-
-FText GetTextureGroupDisplayName(TextureGroup GroupEnum)
-{
-    const TCHAR* GroupNameTChar = UTexture::GetTextureGroupString(GroupEnum);
-    FString DisplayNameOut;
-
-    if (GConfig)
-    {
-        const UWcwMemoryMonitorSettings* Settings = UWcwMemoryMonitorSettings::Get();
-
-        FString IniSec = TEXT("EnumRemap");
-        FString KeyName = FString::Printf(TEXT("%s.DisplayName"), GroupNameTChar);
-
-        if (GConfig->GetString(*IniSec, *KeyName, DisplayNameOut, GEngineIni))
-        {
-            return FText::FromString(DisplayNameOut);
-        }
-    }
-
-    return FText::FromString(GroupNameTChar);
-}
-
-void SWcwMemoryBudgetWidget::OnFontScaleCVarChanged(IConsoleVariable* CVar)
-{
-    if (CVar)
     {
        const UWcwMemoryMonitorSettings* Settings = UWcwMemoryMonitorSettings::Get();
        FSlateFontInfo CustomFont = FAppStyle::GetFontStyle("NormalFont");
        float BaseSize = Settings->FontSize; 
-        float NewScale = CVar->GetFloat();
-       
-        for (int32 i = 0; i < GroupElements.Num(); ++i)
-        {
-            FGroupUIElement& Elem = GroupElements[i];
+	   {
+			for (int32 i = 0; i < GroupElements.Num(); ++i)
+			{
+				FGroupUIElement& Elem = GroupElements[i];
 
-            if (Elem.ValueTextBlock.IsValid())
-            {
-                FSlateFontInfo CurrentFont = Elem.ValueTextBlock->GetFont();
-                CurrentFont.Size = FMath::RoundToInt(BaseSize * NewScale); 
-                Elem.ValueTextBlock->SetFont(CurrentFont);
-            }
-            if (Elem.NameTextBlock.IsValid())
-            {
-                FSlateFontInfo CurrentFont = Elem.NameTextBlock->GetFont();
-                CurrentFont.Size = FMath::RoundToInt(BaseSize * NewScale); 
-                Elem.NameTextBlock->SetFont(CurrentFont);
-            }
-        }
+				if (Elem.ValueTextBlock.IsValid())
+				{
+					FSlateFontInfo CurrentFont = Elem.ValueTextBlock->GetFont();
+					CurrentFont.Size = FMath::RoundToInt(BaseSize * CurrentScale); 
+					Elem.ValueTextBlock->SetFont(CurrentFont);
+				}
+				if (Elem.NameTextBlock.IsValid())
+				{
+					FSlateFontInfo CurrentFont = Elem.NameTextBlock->GetFont();
+					CurrentFont.Size = FMath::RoundToInt(BaseSize * CurrentScale); 
+					Elem.NameTextBlock->SetFont(CurrentFont);
+				}
+			}
+	   }
     }
 }
 
@@ -282,6 +304,14 @@ void SWcwMemoryBudgetWidget::UpdateMemoryData()
                   Result = FText::FromString(FString::Printf(TEXT("Use:%5.1f / Buget:%5.1f MB"), Elem.CurrentMB, Elem.MaxMB));
             }
             break;
+		case EMonitorContentType::RHIResource:
+			{
+                  Elem.CurrentMB = MemorySubsystem->GetRhiResourceMemory(Elem.RhiGroup);
+                  TextColor = FLinearColor::White;
+                  bApply=true;
+                  Result = FText::FromString(FString::Printf(TEXT("Use:%5.1f MB"), Elem.CurrentMB));				
+			}
+			break;
         default:break;
         }
         if(bApply==false)continue;
