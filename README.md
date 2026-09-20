@@ -7,7 +7,10 @@
 > *Tested on Unreal Engine 5.6, 5.7, and 5.8.*
 > ## Download
 >
->Pre-built Win64 binaries for UE 5.6 / 5.7 / 5.8 are on the Releases page.  
+>Pre-built Win64 binaries for UE 5.6 / 5.7 / 5.8 are on the Releases page.
+> - Source build: **Windows, PlayStation 5, Xbox Series X/S, Nintendo Switch, Nintendo Switch 2**  
+> - Not loaded in **Shipping** (`TargetConfigurationDenyList`). Use Development / Test.  
+> - Some OS-level counters are Windows-only. Console HUD shows the Unreal-side metrics (LLM, TextureGroup, RHI where available).
 >Use the zip that matches your engine version.
 >
 >- Releases (binaries): https://github.com/yuukajii/UnrealWcwMemoryMonitor/releases
@@ -25,6 +28,9 @@
 > *※UE5.6、UE5.7、UE5.8 にてテスト済みです。*  
 > - バイナリ配布: https://github.com/yuukajii/UnrealWcwMemoryMonitor/releases
 > - 現行ビルド: [v0.1.0 Beta](https://github.com/yuukajii/UnrealWcwMemoryMonitor/releases/tag/v0.1.0)
+> - ソースからビルドすれば **Windows / PS5 / Series X|S / Switch / Switch 2** で利用可能  
+> - **Shipping には入りません。** Development / Test 向けです  
+> - OS 由来のカウンタは Windows のみのことがあります。コンソールでは LLM や TextureGroup などエンジン側の指標が中心です
 > 
 > Shipping ビルドには入りません。Editor でテスト済みです。
 > 
