@@ -41,6 +41,7 @@
 void GatherRhiResourceStats(TMap<EWcwRhiResourceGroup, FWcwRhiResourceStatsInfo>& OutStats)
 {
     OutStats.Empty();
+#if RHI_ENABLE_RESOURCE_INFO
     TArray<TSharedPtr<FRHIResourceStats>> ResourceStats;
     RHIGetTrackedResourceStats(ResourceStats);
 
@@ -76,6 +77,7 @@ void GatherRhiResourceStats(TMap<EWcwRhiResourceGroup, FWcwRhiResourceStatsInfo>
             }
         }
     }
+#endif
 }
 
 
