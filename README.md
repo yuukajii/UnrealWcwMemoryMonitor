@@ -19,7 +19,8 @@
 >This plugin is **not** included in Shipping builds. Tested in Editor.
 >
 >Manuals: see the `Doc/` folder.
->   
+>
+> Note: The RHI Resource Monitoring feature incurs a relatively high CPU overhead because it internally uses RHIGetTrackedResourceStats to lock and iterate through all GPU resources. We recommend enabling it specifically when you need to conduct memory investigations.
 > **[Japanese]**  
 > 現在このプラグインは **ベータ版（Beta）** です。  
 > APIの仕様変更や、特定の環境における予期せぬ挙動が発生する可能性があります。導入の際はテスト環境での十分な検証をお願いいたします。  
@@ -35,6 +36,8 @@
 > Shipping ビルドには入りません。Editor でテスト済みです。
 > 
 > 操作マニュアルは `Doc/` フォルダにあります。
+>
+> 注意: RHIリソース監視 機能は、内部で RHIGetTrackedResourceStats を使用して全GPUリソースのロックと走査を行うため、CPUオーバーヘッドが比較的重くなっています。メモリ調査を行うタイミングに絞って有効化してご使用いただくことを推奨します。
 > 
 > ## Feedback & Issues  
 > If you encounter any bugs, have feature requests, or want to share feedback, please feel free to open an [Issue](https://github.com/yuukajii/UnrealWcwMemoryMonitor/issues). Contributions are also welcome!  
