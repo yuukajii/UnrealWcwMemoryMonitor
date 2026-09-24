@@ -292,7 +292,7 @@ void SWcwMemoryBudgetWidget::UpdateMemoryData()
                 {
                     Elem.NameTextBlock->SetText(GetTextureGroupDisplayName(Elem.GroupEnum));
                 }
-                Result = FText::FromString(FString::Printf(TEXT("Use: %5.1f / Buget:%5.1f MB"), Elem.CurrentMB, Elem.MaxMB));
+                Result = FText::FromString(FString::Printf(TEXT("Use: %5.1f / Budget:%5.1f MB"), Elem.CurrentMB, Elem.MaxMB));
             }
             break;
         case EMonitorContentType::LLMMetrics:
@@ -301,7 +301,7 @@ void SWcwMemoryBudgetWidget::UpdateMemoryData()
                   const bool bIsOver = Elem.CurrentMB > Elem.MaxMB;
                   TextColor = bIsOver ? FLinearColor(1.0f, 0.2f, 0.2f, 1.0f) : FLinearColor::White;
                   bApply=true;
-                  Result = FText::FromString(FString::Printf(TEXT("Use:%5.1f / Buget:%5.1f MB"), Elem.CurrentMB, Elem.MaxMB));
+                  Result = FText::FromString(FString::Printf(TEXT("Use:%5.1f / Budget:%5.1f MB"), Elem.CurrentMB, Elem.MaxMB));
             }
             break;
 		case EMonitorContentType::RHIResource:
