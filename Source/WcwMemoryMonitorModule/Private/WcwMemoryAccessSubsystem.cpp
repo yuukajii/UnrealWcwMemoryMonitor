@@ -176,8 +176,6 @@ void UWcwMemoryAccessSubsystem::FetchMemoryStats()
     }
 	if(Settings->RhiResourceGroups.Num()>0)
 	{//Rhi
-		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("Wcw.MemoryMonitor.EnableRHI"));
-		if(CVar && CVar->GetValueOnAnyThread())
 		{
 			RhiResourceStats.Empty();
 			RhiResourceStats.Reserve(static_cast<int>(EWcwRhiResourceGroup::Max));
