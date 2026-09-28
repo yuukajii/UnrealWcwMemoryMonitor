@@ -14,7 +14,7 @@
 #include "WcwMemoryMonitorSettings.h"
 #include "RHI.h"
 
-#if PLATFORM_WINDOWS || PLATFORM_MICROSOFT
+#if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include <dxgi1_4.h>
 #include <Pdh.h>
@@ -176,9 +176,13 @@ void UWcwMemoryAccessSubsystem::FetchMemoryStats()
     }
 	if(Settings->RhiResourceGroups.Num()>0)
 	{//Rhi
-		RhiResourceStats.Empty();
-	    RhiResourceStats.Reserve(static_cast<int>(EWcwRhiResourceGroup::Max));
-		GatherRhiResourceStats(RhiResourceStats);
+		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("Wcw.MemoryMonitor.EnableRHI"));
+		if(CVar && CVar->GetValueOnAnyThread())
+		{
+			RhiResourceStats.Empty();
+			RhiResourceStats.Reserve(static_cast<int>(EWcwRhiResourceGroup::Max));
+			GatherRhiResourceStats(RhiResourceStats);
+		}
 	}
 }
 
@@ -192,7 +196,7 @@ float UWcwMemoryAccessSubsystem::GetTotalVRAM_MB() const
 
 float UWcwMemoryAccessSubsystem::GetUsedVRAM_MB() const
 {
-#if PLATFORM_WINDOWS || PLATFORM_MICROSOFT
+#if PLATFORM_WINDOWS
     LUID TargetLuid{};
     bool bHasLuid = false;
 
