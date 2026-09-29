@@ -35,15 +35,21 @@ private:
         FString GroupName;
         float CurrentMB = 0.f;
         float MaxMB = 512.f;
-        
-        TSharedPtr<STextBlock> NameTextBlock;
+        // Peak
+	    float PeakValueMB = 0.0f;
+	    FDateTime PeakTime;
+	    float PeakHoldTimer = 0.0f;
+
+		TSharedPtr<STextBlock> NameTextBlock;
         TSharedPtr<STextBlock> ValueTextBlock;
     };
-
+	TSharedPtr<STextBlock> BuildIdTextBlock;
+	TSharedPtr<STextBlock> MemoryBudgetTextBlock;
+	TSharedPtr<STextBlock> PresetTextBlock[11];
     TArray<FGroupUIElement> GroupElements;
 	float	LastFontScale=1.0f;
     
     void AddElement(const FGroupUIElement& Element,TSharedPtr<SVerticalBox> MainVerticalBox);
     void ApplyFontScale(float CurrentScale);
-    void UpdateMemoryData();
+    void UpdateMemoryData(float InDeltaTime);
 };

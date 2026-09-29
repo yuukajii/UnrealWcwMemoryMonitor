@@ -176,6 +176,8 @@ void UWcwMemoryAccessSubsystem::FetchMemoryStats()
     }
 	if(Settings->RhiResourceGroups.Num()>0)
 	{//Rhi
+		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("Wcw.MemoryMonitor.EnableRHI"));
+		if(CVar && CVar->GetValueOnAnyThread())
 		{
 			RhiResourceStats.Empty();
 			RhiResourceStats.Reserve(static_cast<int>(EWcwRhiResourceGroup::Max));
@@ -194,7 +196,7 @@ float UWcwMemoryAccessSubsystem::GetTotalVRAM_MB() const
 
 float UWcwMemoryAccessSubsystem::GetUsedVRAM_MB() const
 {
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS 
     LUID TargetLuid{};
     bool bHasLuid = false;
 
@@ -256,8 +258,7 @@ float UWcwMemoryAccessSubsystem::GetUsedVRAM_MB() const
     Buffer.SetNumZeroed(BufferSize);
     auto* Items = reinterpret_cast<PDH_FMT_COUNTERVALUE_ITEM*>(Buffer.GetData());
 
-    const PDH_STATUS ArrStatus = PdhGetFormattedCounterArray(
-        Counter, PDH_FMT_LARGE, &BufferSize, &ItemCount, Items);
+    const PDH_STATUS ArrStatus = PdhGetFormattedCounterArray(Counter, PDH_FMT_LARGE, &BufferSize, &ItemCount, Items);
 
     float UsedMB = 0.0f;
     if (ArrStatus == ERROR_SUCCESS)
